@@ -1,70 +1,64 @@
-from flask import Flask, request
+import os
+import csv
 import requests
+from datetime import datetime
+from aiohttp import web
+from aiogram import Bot, Dispatcher, types
+from aiogram.types import Update
 
-app = Flask(__name__)
+BOT_TOKEN = os.getenv("BOT_TOKEN", "7152782887:AAFbItSrIW2uYXHqGHTfp-FKkvWKLA8ChVc")
+GROUP_ID = os.getenv("GROUP_ID", "-2286707356")
+ADMIN_ID = os.getenv("ADMIN_ID", "6967780222")
 
-BOT_TOKEN = '7152782887:AAFbItSrIW2uYXHqGHTfp-FKkvWKLA8ChVc'
-GROUP_ID = '-2286707356'
-ADMIN_ID = '6967780222'  
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher(bot)
 
-# Optional: shared memory invoice tracking (if used)
 user_invoices = {}
 
-def log_confirmed_payment(telegram_id, username, amount, invoice_id):
-    with open("confirmed_payments.csv", mode="a", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow([datetime.now(), telegram_id, username, amount, invoice_id])
+# Webhook Handler for Telegram (optional)
+async def telegram_webhook(request):
+    data = await request.json()
+    update = Update.to_object(data)
+    await dp.process_update(update)
+    return web.Response()
 
-def add_user_to_group(telegram_id):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/unbanChatMember"
-    payload = {
-        'chat_id': GROUP_ID,
-        'user_id': telegram_id
-    }
-    requests.post(url, data=payload)
-
-def notify_admin(telegram_id):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    text = f"💸 Payment confirmed for Telegram user `{telegram_id}`.\nThey've been added to the group."
-    payload = {
-        'chat_id': ADMIN_ID,
-        'text': text,
-        'parse_mode': 'Markdown'
-    }
-    requests.post(url, data=payload)
-
-@app.route("/nowpayments-webhook", methods=["POST"])
-def nowpayments_webhook():
-    data = request.get_json()
+# NOWPayments Webhook Handler
+async def nowpayments_webhook(request):
+    data = await request.json()
     status = data.get("payment_status")
     description = data.get("order_description", "")
-    invoice_id = data.get("payment_id", "N/A")  # Optional fallback
+    invoice_id = data.get("payment_id", "N/A")
     amount = data.get("price_amount", "97.00")
     
+    telegram_id = None
     if ' - ' in description:
         _, telegram_id = description.split(' - ')
-    else:
-        telegram_id = None
+        telegram_id = telegram_id.strip()
 
     if status == "confirmed" and telegram_id:
-        telegram_id = telegram_id.strip()
-        add_user_to_group(telegram_id)
+        # ✅ Add user to group
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/unbanChatMember",
+            data={"chat_id": GROUP_ID, "user_id": telegram_id}
+        )
 
-        # Optional: look up username from CSV
+        # ✅ Retrieve username from payment log (optional)
         username = "N/A"
         try:
             with open("payments_log.csv", "r") as file:
                 for row in reversed(list(csv.reader(file))):
-                    if telegram_id == row[1]:  # chat_id is in column 1
+                    if telegram_id == row[1]:
                         username = row[2]
                         break
         except:
             pass
 
         # ✅ Log confirmed payment
-        log_confirmed_payment(telegram_id, username, amount, invoice_id)
+        with open("confirmed_payments.csv", "a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow([datetime.now(), telegram_id, username, amount, invoice_id])
 
-        # ✅ Auto-remove from memory
+        # ✅ Clear in-memory invoice
         try:
             telegram_id_int = int(telegram_id)
             if telegram_id_int in user_invoices:
@@ -73,12 +67,21 @@ def nowpayments_webhook():
             pass
 
         # ✅ Notify admin
-        admin_id = 6967780222  # Replace if needed
         notify_msg = f"✅ {username} just PAID {amount} BTC!\nTelegram ID: {telegram_id}\nInvoice: {invoice_id}"
         requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            data={"chat_id": admin_id, "text": notify_msg}
+            data={"chat_id": ADMIN_ID, "text": notify_msg}
         )
 
         print(f"✅ Confirmed: {telegram_id} was added + logged")
-    return '', 200
+
+    return web.Response()
+
+# Create aiohttp app and routes
+app = web.Application()
+app.router.add_post("/telegram-webhook", telegram_webhook)
+app.router.add_post("/nowpayments-webhook", nowpayments_webhook)
+
+# Run server
+if __name__ == '__main__':
+    web.run_app(app, port=8080)
