@@ -3,6 +3,7 @@ import csv
 from datetime import datetime
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import MessageHandler, filters
 
 # 🔐 API keys
 import os
@@ -141,6 +142,24 @@ async def testpayment(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("✅ Test payment processed.")
 
+# Welcome Message & Invite To Private
+async def welcome_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.message.new_chat_members[0]
+    chat_id = user.id
+
+    try:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=(
+                "👋 Welcome to Scam’s Club Free!\n\n"
+                "🚀 Ready to level up?\n\n"
+                "💳 Join Scam’s Club Plus:\n"
+                "👉 Use /start to generate your BTC payment link and get instant access to exclusive drops and sauce."
+            )
+        )
+    except Exception as e:
+        print(f"❌ Failed to message new user: {e}")
+
 
 # Launch bot
 if __name__ == "__main__":
@@ -148,4 +167,5 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("status", status))
     app.add_handler(CommandHandler("testpayment", testpayment))
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_user))
     app.run_polling()
