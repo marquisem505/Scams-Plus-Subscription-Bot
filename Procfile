@@ -1,1 +1,1 @@
-python now_bot.py
+start: python now_bot.py
