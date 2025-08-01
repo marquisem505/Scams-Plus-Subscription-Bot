@@ -1,0 +1,6 @@
+{
+    "build": {
+      "start": "python now_bot.py"
+    }
+  }
+  
