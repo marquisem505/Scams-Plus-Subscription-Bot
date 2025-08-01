@@ -5,9 +5,10 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 # 🔐 API keys
-BOT_TOKEN = '7152782887:AAFbItSrIW2uYXHqGHTfp-FKkvWKLA8ChVc'
-NOWPAYMENTS_API_KEY = '3FFCH0M-9DW49WY-JGPC54G-PK89607'
+import os
 
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+NOWPAYMENTS_API_KEY = os.getenv("NOWPAYMENTS_API_KEY")
 headers = {
     "x-api-key": NOWPAYMENTS_API_KEY,
     "Content-Type": "application/json"
