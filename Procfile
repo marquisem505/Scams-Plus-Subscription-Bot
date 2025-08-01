@@ -1,1 +1,1 @@
-worker: python3 now_bot.py
+python now_bot.py
