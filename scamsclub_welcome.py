@@ -35,23 +35,20 @@ async def handle_new_member(event: types.ChatMemberUpdated):
         await bot.send_message(chat_id=event.chat.id, text=welcome_text, reply_markup=keyboard)
 
 # Handle /start in DM with ?start=welcome
-@dp.message_handler(commands=["start"])
-async def start_command(message: types.Message):
-    args = message.get_args()
-
-    if args == "welcome":
-        await message.answer(
-            "👋 Thanks for joining Scam’s Club Store 🏪\n\n"
-            "You now have access to:\n"
-            "📚 /methods – Explore simulated guides\n"
-            "🛠 /tools – OTP bots, spoofers, etc.\n"
-            "💳 /banklogs – Walkthroughs and log shops\n"
-            "🎓 /mentorship – Learn 1-on-1 (mock)\n"
-            "🧠 /faq – Learn the language\n"
-            "📜 /terms – Simulation disclaimer\n\n"
-            "DM @ScamsClub_Store if you need help."
-        )
-
+@dp.message_handler(commands=["welcome"])
+async def welcome_command(message: types.Message):
+    await message.answer(
+        "👋 Thanks for joining Scam’s Club Store 🏪\n\n"
+        "You now have access to:\n"
+        "📚 /methods – Explore simulated guides\n"
+        "🛠 /tools – OTP bots, spoofers, etc.\n"
+        "💳 /banklogs – Walkthroughs and log shops\n"
+        "🎓 /mentorship – Learn 1-on-1 (mock)\n"
+        "🧠 /faq – Learn the language\n"
+        "📜 /terms – Simulation disclaimer\n\n"
+        "DM @ScamsClub_Store if you need help."
+    )
+    
 # Run the bot
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
