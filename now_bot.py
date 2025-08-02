@@ -156,6 +156,7 @@ app.router.add_post('/telegram-webhook', telegram_webhook)
 
 # 📡 Telegram bot app
 application = Application.builder().token(BOT_TOKEN).build()
+await application.initialize()
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("status", status))
 application.add_handler(CommandHandler("testpayment", testpayment))
