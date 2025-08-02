@@ -1,9 +1,10 @@
+
 import os
 import csv
 import requests
 from datetime import datetime
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatJoinRequest
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, ChatJoinRequestHandler, filters
 from aiohttp import web
 
 # 🔐 ENV variables
@@ -122,7 +123,7 @@ async def testpayment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=ADMIN_ID, text=f"✅ (SIMULATED) {username} marked as PAID\nTelegram ID: {telegram_id}\nInvoice: {invoice_id}")
     await update.message.reply_text("✅ Test payment processed.")
 
-# 🧾 New user welcome
+# 🧾 New user welcome (group join)
 async def welcome_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.new_chat_members[0]
     chat_id = user.id
@@ -139,7 +140,25 @@ async def welcome_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         print(f"❌ Failed DM: {e}")
 
-# 🌐 Telegram webhook endpoint
+# ✅ Handle join requests (approval + DM button)
+async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    join_request: ChatJoinRequest = update.chat_join_request
+    user = join_request.from_user
+
+    try:
+        await context.bot.approve_chat_join_request(chat_id=join_request.chat.id, user_id=user.id)
+        keyboard = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("📩 Start Here", url="https://t.me/ScamsClub_Bot?start=welcome")]]
+        )
+        await context.bot.send_message(
+            chat_id=user.id,
+            text="🚨 Welcome to Scam’s Club Free!\n\nClick below to activate your access ⬇️",
+            reply_markup=keyboard
+        )
+    except Exception as e:
+        print(f"❌ Failed to process join request: {e}")
+
+# 🌐 Webhook handler
 async def telegram_webhook(request):
     try:
         data = await request.json()
@@ -154,18 +173,17 @@ async def telegram_webhook(request):
 app = web.Application()
 app.router.add_post('/telegram-webhook', telegram_webhook)
 
-# 📡 Telegram bot app
+# 📡 Telegram app
 application = Application.builder().token(BOT_TOKEN).build()
-
-# Register handlers
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("status", status))
 application.add_handler(CommandHandler("testpayment", testpayment))
 application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_user))
+application.add_handler(ChatJoinRequestHandler(handle_join_request))
 
-# 📌 Webhook on startup
+# 📌 Set webhook on startup
 async def on_startup(app):
-    await application.initialize()  # ✅ VALID AWAIT
+    await application.initialize()
     await application.bot.set_webhook(WEBHOOK_URL)
     print(f"✅ Webhook set: {WEBHOOK_URL}")
 
