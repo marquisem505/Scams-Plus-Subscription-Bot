@@ -153,14 +153,13 @@ async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE
             chat_id=user.id,
             text=(
                 "👋 Thank You For Joining Scam’s Club!\n\n"
-                "🚀 Ready to level up?\n"
-                "💳 Join Scam’s Plus For Access To:\n\n"
+                "🚀 Ready To Level Up? Join Scam’s Plus For Access To:\n\n"
                 "🔒 Our VIP Lounge\n"
                 "📋 Verified & Current Working Methods\n"
                 "🙋 Help With Any/All Questions\n"
                 "🛠️ Our Favorite Tools & Bots\n"
                 "🧑‍🎓 Con Academy (Our 1-on-1 Mentorship Program)\n"
-                "📋 Verified Vendors For Collaborations\n"
+                "📋 Verified Vendors For Collaborations\n\n"
                 "👇 Join Scam's Plus Now! 👇"
             ),
             reply_markup=keyboard
