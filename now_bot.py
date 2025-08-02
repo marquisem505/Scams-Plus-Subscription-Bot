@@ -168,4 +168,43 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("status", status))
     app.add_handler(CommandHandler("testpayment", testpayment))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_user))
-    app.run_polling()
+    from aiohttp import web
+from telegram import Update
+from telegram.ext import ApplicationBuilder
+
+# Create Telegram app
+app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+# Add all handlers (same as before)
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("status", status))
+app.add_handler(CommandHandler("testpayment", testpayment))
+app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_user))
+
+# Aiohttp route to handle Telegram webhook updates
+async def telegram_webhook_handler(request):
+    data = await request.json()
+    update = Update.de_json(data, app.bot)
+    await app.process_update(update)
+    return web.Response(text="OK")
+
+# Aiohttp app and routes
+web_app = web.Application()
+web_app.router.add_post("/telegram-webhook", telegram_webhook_handler)
+
+# 🚀 Start aiohttp server
+if __name__ == '__main__':
+    import asyncio
+    async def start():
+        # Set webhook with Telegram
+        webhook_url = "https://yourdomain.com/telegram-webhook"  # 👈 update to your real domain
+        await app.bot.set_webhook(webhook_url)
+
+        # Run the aiohttp server
+        runner = web.AppRunner(web_app)
+        await runner.setup()
+        site = web.TCPSite(runner, "0.0.0.0", 8080)
+        await site.start()
+        print("🚀 Webhook server running on port 8080")
+
+    asyncio.run(start())
