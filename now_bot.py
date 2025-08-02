@@ -64,10 +64,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(
             chat_id=chat_id,
             text=(
-                f"💳 To join Scam’s Club Plus:\n\n"
-                f"👉 [Click here to pay with BTC]({invoice_url})\n\n"
+                f"💳 Scam’s Club Plus is $97/month:\n\n"
+                f"👉 [Click Here To Sign Up]({invoice_url})\n\n"
                 f"This link will generate your own QR code and BTC address.\n"
-                f"✅ After payment is confirmed, you’ll be added to the group."
+                f"✅ After payment is confirmed, you’ll be automatically added to Scam's Plus!."
             ),
             parse_mode="Markdown"
         )
@@ -121,24 +121,7 @@ async def testpayment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 
     await context.bot.send_message(chat_id=ADMIN_ID, text=f"✅ (SIMULATED) {username} marked as PAID\nTelegram ID: {telegram_id}\nInvoice: {invoice_id}")
-    await update.message.reply_text("✅ Test payment processed.")
-
-# 🧾 New user welcome (group join)
-async def welcome_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.message.new_chat_members[0]
-    chat_id = user.id
-    try:
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=(
-                "👋 Welcome to Scam’s Club !\n\n"
-                "🚀 Ready to level up?\n\n"
-                "💳 Join Scam’s Club Plus:\n"
-                "👉 Use /start to generate your BTC payment link."
-            )
-        )
-    except Exception as e:
-        print(f"❌ Failed DM: {e}")
+    await update.message.reply_text("✅ Test payment processed.")I d
 
 # ✅ Handle join requests (DM with button, no auto-approve)
 async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -151,7 +134,7 @@ async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         await context.bot.send_message(
             chat_id=user.id,
-            text=(
+            text=(I
                 "👋 Thank You For Joining Scam’s Club!\n\n"
                 "🚀 Ready To Level Up? Join Scam’s Plus For Access To:\n\n"
                 "🔒 Our VIP Lounge\n"
