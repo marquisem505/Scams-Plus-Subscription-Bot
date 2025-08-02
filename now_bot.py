@@ -1,38 +1,37 @@
-import requests
-import csv
-from datetime import datetime
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from telegram.ext import MessageHandler, filters
-
-# 🔐 API keys
 import os
+import csv
+import requests
+from datetime import datetime
+from aiohttp import web
+from telegram import Update
+from telegram.ext import (
+    Application, CommandHandler, ContextTypes,
+    MessageHandler, filters, AIORateLimiter
+)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 NOWPAYMENTS_API_KEY = os.getenv("NOWPAYMENTS_API_KEY")
+ADMIN_ID = int(os.getenv("ADMIN_ID"))
+GROUP_ID = int(os.getenv("GROUP_ID"))
+
 headers = {
     "x-api-key": NOWPAYMENTS_API_KEY,
     "Content-Type": "application/json"
 }
 
-ADMIN_ID = 6967780222
-GROUP_ID = -2286707356
-
-def is_admin(user_id):
-    return int(user_id) == ADMIN_ID
-    
-
-
-# In-memory storage of invoice IDs per user
 user_invoices = {}
 
-# Log invoice
-def log_invoice(chat_id, username, invoice_id, invoice_url, amount ):
-    with open("payments_log.csv", mode="a", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow([datetime.now(), chat_id, username, invoice_id, amount, invoice_url])
+def is_admin(user_id): return int(user_id) == ADMIN_ID
 
-# /start handler
+def log_invoice(chat_id, username, invoice_id, invoice_url, amount):
+    with open("payments_log.csv", "a", newline="") as f:
+        csv.writer(f).writerow([datetime.now(), chat_id, username, invoice_id, amount, invoice_url])
+
+def log_confirmed_payment(chat_id, username, amount, invoice_id):
+    with open("confirmed_payments.csv", "a", newline="") as f:
+        csv.writer(f).writerow([datetime.now(), chat_id, username, amount, invoice_id])
+
+# Telegram Command Handlers
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     username = update.effective_user.username or "N/A"
@@ -41,170 +40,114 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "price_currency": "usd",
         "pay_currency": "btc",
         "order_description": f"Scam’s Club Plus Access - {chat_id}",
-        "ipn_callback_url": "https://59afd3479b7f.ngrok-free.app/nowpayments-webhook",
+        "ipn_callback_url": "https://scamsclub.store/nowpayments-webhook",
         "success_url": "https://t.me/+gKCi4JF7POg3M2Ux",
         "cancel_url": "https://t.me/+gKCi4JF7POg3M2Ux"
     }
 
     try:
-        response = requests.post("https://api.nowpayments.io/v1/invoice", json=payload, headers=headers)
-        data = response.json()
-
-        # 👇 Log full response
-        print("NOWPayments response:", data)
-
-        invoice_url = data['invoice_url']  # ✅ This is the hosted BTC payment link
-        invoice_id = str(data['id'])       # ✅ This is the unique invoice ID
+        res = requests.post("https://api.nowpayments.io/v1/invoice", json=payload, headers=headers).json()
+        invoice_url, invoice_id = res["invoice_url"], str(res["id"])
         user_invoices[chat_id] = invoice_id
         log_invoice(chat_id, username, invoice_id, invoice_url, "97.00 USD")
 
-        if not invoice_url or not invoice_id:
-            await context.bot.send_message(chat_id=chat_id, text=f"❌ NOWPayments did not return expected fields:\n{data}")
-            return
-
-        # ✅ Save invoice to memory
-        user_invoices[chat_id] = invoice_id
-
-        # ✅ Log invoice to CSV
-        log_invoice(chat_id, username, invoice_id, invoice_url, "97.00 USD")
-
-        # ✅ Send payment link
-        message = (
+        msg = (
             f"💳 To join Scam’s Club Plus:\n\n"
             f"👉 [Click here to pay with BTC]({invoice_url})\n\n"
             f"This link will generate your own QR code and BTC address.\n"
             f"✅ After payment is confirmed, you’ll be added to the group."
         )
-        await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="Markdown")
-
+        await context.bot.send_message(chat_id, text=msg, parse_mode="Markdown")
     except Exception as e:
-        await context.bot.send_message(chat_id=chat_id, text=f"❌ Error: {str(e)}")
+        await context.bot.send_message(chat_id, text=f"❌ Error: {str(e)}")
 
-# /status handler
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     invoice_id = user_invoices.get(chat_id)
-
     if not invoice_id:
-        await context.bot.send_message(chat_id=chat_id, text="❌ No payment found. Use /start to create one.")
-        return
+        return await context.bot.send_message(chat_id, "❌ No payment found. Use /start to create one.")
 
     try:
-        response = requests.get(
-            f"https://api.nowpayments.io/v1/invoice/{invoice_id}",
-            headers=headers
-        )
-        data = response.json()
-        status = data.get('payment_status', 'Unknown')
-        await context.bot.send_message(chat_id=chat_id, text=f"📊 Current payment status: **{status.upper()}**", parse_mode="Markdown")
+        res = requests.get(f"https://api.nowpayments.io/v1/invoice/{invoice_id}", headers=headers).json()
+        await context.bot.send_message(chat_id, f"📊 Status: **{res.get('payment_status', 'Unknown').upper()}**", parse_mode="Markdown")
     except Exception as e:
-        await context.bot.send_message(chat_id=chat_id, text=f"❌ Error checking status: {str(e)}")
+        await context.bot.send_message(chat_id, f"❌ Error checking status: {str(e)}")
 
-def log_confirmed_payment(chat_id, username, amount, invoice_id):
-    with open("confirmed_payments.csv", mode="a", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow([datetime.now(), chat_id, username, amount, invoice_id])
-
-# /testpayment handler
 async def testpayment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
-        await update.message.reply_text("🚫 You are not authorized.")
-        return
-
+        return await update.message.reply_text("🚫 You are not authorized.")
     if not context.args:
-        await update.message.reply_text("⚠️ Usage: /testpayment 123456789")
-        return
-
+        return await update.message.reply_text("⚠️ Usage: /testpayment <telegram_id>")
+    
     telegram_id = context.args[0]
-    username = "TestUser"
-    amount = "97.00"
+    username, amount = "TestUser", "97.00"
     invoice_id = "TEST-" + str(datetime.now().timestamp()).split('.')[0]
-
-    # Add user to group
-    requests.post(
-        f"https://api.telegram.org/bot{BOT_TOKEN}/unbanChatMember",
-        data={"chat_id": GROUP_ID, "user_id": telegram_id}
-    )
-
-    # Log payment 
+    
+    requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/unbanChatMember",
+                  data={"chat_id": GROUP_ID, "user_id": telegram_id})
     log_confirmed_payment(telegram_id, username, amount, invoice_id)
-
-    # Remove from in-memory invoice tracking
-    try:
-        if int(telegram_id) in user_invoices:
-            del user_invoices[int(telegram_id)]
-    except:
-        pass
-
-    # Notify admin when payment is confirmed
-    notify_msg = f"✅ (SIMULATED) {username} marked as PAID\nTelegram ID: {telegram_id}\nInvoice: {invoice_id}"
-    await context.bot.send_message(chat_id=ADMIN_ID, text=notify_msg)
-
+    user_invoices.pop(int(telegram_id), None)
+    
+    await context.bot.send_message(ADMIN_ID, text=f"✅ (SIMULATED) {username} marked as PAID\nID: {telegram_id}\nInvoice: {invoice_id}")
     await update.message.reply_text("✅ Test payment processed.")
 
-# Welcome Message & Invite To Private
 async def welcome_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.new_chat_members[0]
-    chat_id = user.id
+    await context.bot.send_message(user.id, text=(
+        "👋 Welcome to Scam’s Club Free!\n\n"
+        "🚀 Ready to level up?\n\n"
+        "💳 Join Scam’s Club Plus:\n"
+        "👉 Use /start to generate your BTC payment link."
+    ))
 
-    try:
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=(
-                "👋 Welcome to Scam’s Club Free!\n\n"
-                "🚀 Ready to level up?\n\n"
-                "💳 Join Scam’s Club Plus:\n"
-                "👉 Use /start to generate your BTC payment link and get instant access to exclusive drops and sauce."
-            )
-        )
-    except Exception as e:
-        print(f"❌ Failed to message new user: {e}")
+# 🌐 Webhook Handlers
+async def telegram_webhook(request):
+    data = await request.json()
+    await app.update_queue.put(Update.de_json(data, bot))
+    return web.Response()
 
+async def nowpayments_webhook(request):
+    data = await request.json()
+    status = data.get("payment_status")
+    description = data.get("order_description", "")
+    invoice_id = data.get("payment_id", "N/A")
+    amount = data.get("price_amount", "97.00")
 
-# Launch bot
-if __name__ == "__main__":
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("status", status))
-    app.add_handler(CommandHandler("testpayment", testpayment))
-    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_user))
-    from aiohttp import web
-from telegram import Update
-from telegram.ext import ApplicationBuilder
+    if " - " in description:
+        _, telegram_id = description.split(" - ")
+        telegram_id = telegram_id.strip()
 
-# Create Telegram app
-app = ApplicationBuilder().token(BOT_TOKEN).build()
+        if status == "confirmed":
+            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/unbanChatMember",
+                          data={"chat_id": GROUP_ID, "user_id": telegram_id})
+            username = "N/A"
+            try:
+                with open("payments_log.csv", "r") as f:
+                    for row in reversed(list(csv.reader(f))):
+                        if telegram_id == row[1]:
+                            username = row[2]
+                            break
+            except:
+                pass
 
-# Add all handlers (same as before)
+            log_confirmed_payment(telegram_id, username, amount, invoice_id)
+            notify = f"✅ {username} PAID {amount} BTC!\nID: {telegram_id}\nInvoice: {invoice_id}"
+            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                          data={"chat_id": ADMIN_ID, "text": notify})
+
+    return web.Response()
+
+# 🚀 Main app setup
+app = Application.builder().token(BOT_TOKEN).rate_limiter(AIORateLimiter()).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("status", status))
 app.add_handler(CommandHandler("testpayment", testpayment))
 app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_user))
 
-# Aiohttp route to handle Telegram webhook updates
-async def telegram_webhook_handler(request):
-    data = await request.json()
-    update = Update.de_json(data, app.bot)
-    await app.process_update(update)
-    return web.Response(text="OK")
+aio_app = web.Application()
+aio_app.router.add_post("/telegram-webhook", telegram_webhook)
+aio_app.router.add_post("/nowpayments-webhook", nowpayments_webhook)
 
-# Aiohttp app and routes
-web_app = web.Application()
-web_app.router.add_post("/telegram-webhook", telegram_webhook_handler)
-
-# 🚀 Start aiohttp server
-if __name__ == '__main__':
-    import asyncio
-    async def start():
-        # Set webhook with Telegram
-        webhook_url = "https://yourdomain.com/telegram-webhook"  # 👈 update to your real domain
-        await app.bot.set_webhook(webhook_url)
-
-        # Run the aiohttp server
-        runner = web.AppRunner(web_app)
-        await runner.setup()
-        site = web.TCPSite(runner, "0.0.0.0", 8080)
-        await site.start()
-        print("🚀 Webhook server running on port 8080")
-
-    asyncio.run(start())
+# ⏯️ Serve web app on port 8080
+if __name__ == "__main__":
+    web.run_app(aio_app, port=8080)
