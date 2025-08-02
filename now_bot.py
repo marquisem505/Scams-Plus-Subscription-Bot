@@ -147,14 +147,20 @@ async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     try:
         keyboard = InlineKeyboardMarkup(
-            [[InlineKeyboardButton("🔌 Scam's Plus", url="https://t.me/ScamsClub_Bot?start=welcome")]]
+            [[InlineKeyboardButton("🔌 Join Scam's Plus", url="https://t.me/ScamsClub_Bot?start=welcome")]]
         )
         await context.bot.send_message(
             chat_id=user.id,
             text=(
                 "👋 Welcome to Scam’s Club!\n\n"
-                "💳 Join Scam’s Club Plus:\n"
-                "👉 Use /start to generate your BTC payment link."
+                "💳 Join Scam’s Plus For Access To:\n"
+                "📋 Verified & Current Working Methods/Guides\n"
+                "🙋 Help With Any/All Questions\n"
+                "🛠️ Our Favorite Tools & Bots\n"
+                "🧑‍🎓 Con Academy (1-on-1 Mentorship)\n"
+                "📋 Verified Vendors For Collaborations\n"
+                "🔒 Our VIP Lounge\n"
+                "👇 Join Scam's Plus Now! 👇"
             ),
             reply_markup=keyboard
         )
