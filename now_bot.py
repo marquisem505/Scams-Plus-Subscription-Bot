@@ -121,7 +121,7 @@ async def testpayment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 
     await context.bot.send_message(chat_id=ADMIN_ID, text=f"✅ (SIMULATED) {username} marked as PAID\nTelegram ID: {telegram_id}\nInvoice: {invoice_id}")
-    await update.message.reply_text("✅ Test payment processed.")I d
+    await update.message.reply_text("✅ Test payment processed.")
 
 # ✅ Handle join requests (DM with button, no auto-approve)
 async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
