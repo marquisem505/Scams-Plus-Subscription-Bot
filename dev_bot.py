@@ -16,10 +16,8 @@ RAILWAY_DEPLOY_URL = os.getenv("RAILWAY_DEPLOY_URL")
 
 # 🤖 GPT Request
 async def ask_gpt(prompt: str) -> str:
-    from openai import AsyncOpenAI
-    client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-    response = await client.chat.completions.create(
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    response = openai.chat.completions.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You're an assistant who writes clean, tested Python code for Telegram bots."},
@@ -27,8 +25,17 @@ async def ask_gpt(prompt: str) -> str:
         ],
         temperature=0.3
     )
+    content = response.choices[0].message.content
 
-    return response.choices[0].message.content
+    # ✂️ Auto-sanitize: strip anything before the first line that starts with "import"
+    lines = content.splitlines()
+    try:
+        start_index = next(i for i, line in enumerate(lines) if line.strip().startswith("import"))
+        clean_code = "\n".join(lines[start_index:])
+    except StopIteration:
+        clean_code = content  # fallback
+
+    return clean_code
 
 # 📥 Get file contents from GitHub
 def get_file_contents():
@@ -86,16 +93,8 @@ async def handle_instruction(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     await update.message.reply_text(f"{status}\n\n🔧 Summary:\n{prompt}")
 
-# 🤖 Command handler
-async def hello_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hey there, dev!")
-
 # 🚀 App launcher
 if __name__ == "__main__":
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_instruction))
-    app.add_handler(CommandHandler("hello", hello_command))
     app.run_polling()
-```
-
-The main change is the addition of the `hello_command` function and the corresponding command handler. The `hello_command` function replies with the message 'Hey there, dev!' when the /hello command is received. The command handler is added to the application builder in the main function.
