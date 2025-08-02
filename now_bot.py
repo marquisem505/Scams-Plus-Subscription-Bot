@@ -156,7 +156,8 @@ app.router.add_post('/telegram-webhook', telegram_webhook)
 
 # 📡 Telegram bot app
 application = Application.builder().token(BOT_TOKEN).build()
-await application.initialize()
+
+# Register handlers
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("status", status))
 application.add_handler(CommandHandler("testpayment", testpayment))
@@ -164,9 +165,10 @@ application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, we
 
 # 📌 Webhook on startup
 async def on_startup(app):
-    await application.initialize()
+    await application.initialize()  # ✅ VALID AWAIT
     await application.bot.set_webhook(WEBHOOK_URL)
     print(f"✅ Webhook set: {WEBHOOK_URL}")
+
 app.on_startup.append(on_startup)
 
 # 🚀 Run server
