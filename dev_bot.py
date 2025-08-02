@@ -15,17 +15,20 @@ TARGET_FILE = os.getenv("TARGET_FILE")
 RAILWAY_DEPLOY_URL = os.getenv("RAILWAY_DEPLOY_URL")
 
 # 🤖 GPT Request
-async def ask_gpt(prompt: str) -> str:
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-    response = openai.chat.completions.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": "You're an assistant who writes clean, tested Python code for Telegram bots."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.3
-    )
-    content = response.choices[0].message.content
+async def ask_gpt(
+    f"""You are a Python developer assistant. I will give you code and a command. 
+DO NOT return explanations, comments, or markdown formatting. 
+Only return valid, raw Python code that can be directly used in a `.py` file.
+
+Here is the existing code:
+
+{current_code}
+
+Apply the following change exactly:
+
+{prompt}
+"""
+)
 
     # ✂️ Auto-sanitize: strip anything before the first line that starts with "import"
     lines = content.splitlines()
