@@ -1,7 +1,7 @@
-
 import os
 import csv
 import requests
+import asyncio
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatJoinRequest
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, ChatJoinRequestHandler, filters
@@ -160,6 +160,53 @@ async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE
     except Exception as e:
         print(f"❌ Failed to process join request: {e}")
 
+# 🔁 Background invoice checker
+async def poll_invoice_statuses():
+    while True:
+        await asyncio.sleep(300)
+        for chat_id, invoice_id in list(user_invoices.items()):
+            try:
+                response = requests.get(f"https://api.nowpayments.io/v1/invoice/{invoice_id}", headers=headers)
+                data = response.json()
+
+                if data.get("payment_status") == "finished":
+                    username = "User"
+                    amount = "97.00"
+
+                    requests.post(
+                        f"https://api.telegram.org/bot{BOT_TOKEN}/unbanChatMember",
+                        data={"chat_id": GROUP_ID, "user_id": chat_id}
+                    )
+
+                    log_confirmed_payment(chat_id, username, amount, invoice_id)
+
+                    await application.bot.send_message(
+                        chat_id=chat_id,
+                        text=(
+                            f"✅ Your payment was successful!\n\n"
+                            f"You’ve been added to Scam’s Club Plus.\n"
+                            f"Invoice: `{invoice_id}`\n"
+                            f"Amount: ${amount} USD"
+                        ),
+                        parse_mode="Markdown"
+                    )
+
+                    await application.bot.send_message(
+                        chat_id=ADMIN_ID,
+                        text=(
+                            f"📢 New Paid Member Added\n\n"
+                            f"• Telegram ID: `{chat_id}`\n"
+                            f"• Invoice: `{invoice_id}`\n"
+                            f"• Amount: ${amount} USD"
+                        ),
+                        parse_mode="Markdown"
+                    )
+
+                    del user_invoices[chat_id]
+
+            except Exception as e:
+                print(f"❌ Error checking invoice {invoice_id} for {chat_id}: {e}")
+
 # 🌐 Webhook handler
 async def telegram_webhook(request):
     try:
@@ -186,6 +233,7 @@ application.add_handler(ChatJoinRequestHandler(handle_join_request))
 async def on_startup(app):
     await application.initialize()
     await application.bot.set_webhook(WEBHOOK_URL)
+    asyncio.create_task(poll_invoice_statuses())
     print(f"✅ Webhook set: {WEBHOOK_URL}")
 
 app.on_startup.append(on_startup)
