@@ -1,6 +1,3 @@
-Here is the updated Python Telegram bot file:
-
-```python
 import os
 import openai
 import requests
