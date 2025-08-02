@@ -170,7 +170,6 @@ application = Application.builder().token(BOT_TOKEN).build()
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("status", status))
 application.add_handler(CommandHandler("testpayment", testpayment))
-application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_user))
 application.add_handler(ChatJoinRequestHandler(handle_join_request))
 
 # 📌 Set webhook on startup
