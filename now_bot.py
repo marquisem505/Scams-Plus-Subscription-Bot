@@ -131,7 +131,7 @@ async def welcome_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(
             chat_id=chat_id,
             text=(
-                "👋 Welcome to Scam’s Club Free!\n\n"
+                "👋 Welcome to Scam’s Club !\n\n"
                 "🚀 Ready to level up?\n\n"
                 "💳 Join Scam’s Club Plus:\n"
                 "👉 Use /start to generate your BTC payment link."
@@ -148,11 +148,13 @@ async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         # await context.bot.approve_chat_join_request(chat_id=join_request.chat.id, user_id=user.id)
         keyboard = InlineKeyboardMarkup(
-            [[InlineKeyboardButton("📩 Start Here", url="https://t.me/ScamsClub_Bot?start=welcome")]]
+            [[InlineKeyboardButton("🔌 Scam's Plus", url="https://t.me/ScamsClub_Bot?start=welcome")]]
         )
         await context.bot.send_message(
             chat_id=user.id,
-            text="🚨 Welcome to Scam’s Club Free!\n\nClick below to activate your access ⬇️",
+            text=("👋 Welcome to Scam’s Club !\n\n"
+                "💳 Join Scam’s Club Plus:\n"
+                "👉 Use /start to generate your BTC payment link.",
             reply_markup=keyboard
         )
     except Exception as e:
