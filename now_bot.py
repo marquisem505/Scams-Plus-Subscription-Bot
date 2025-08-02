@@ -140,21 +140,22 @@ async def welcome_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         print(f"❌ Failed DM: {e}")
 
-# ✅ Handle join requests (approval + DM button)
+# ✅ Handle join requests (DM with button, no auto-approve)
 async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     join_request: ChatJoinRequest = update.chat_join_request
     user = join_request.from_user
 
     try:
-        # await context.bot.approve_chat_join_request(chat_id=join_request.chat.id, user_id=user.id)
         keyboard = InlineKeyboardMarkup(
             [[InlineKeyboardButton("🔌 Scam's Plus", url="https://t.me/ScamsClub_Bot?start=welcome")]]
         )
         await context.bot.send_message(
             chat_id=user.id,
-            text=("👋 Welcome to Scam’s Club !\n\n"
+            text=(
+                "👋 Welcome to Scam’s Club!\n\n"
                 "💳 Join Scam’s Club Plus:\n"
-                "👉 Use /start to generate your BTC payment link.",
+                "👉 Use /start to generate your BTC payment link."
+            ),
             reply_markup=keyboard
         )
     except Exception as e:
