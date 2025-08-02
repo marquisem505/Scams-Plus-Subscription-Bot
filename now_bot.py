@@ -66,8 +66,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=(
                 f"💳 Scam’s Club Plus is $97/month:\n\n"
                 f"👉 [Click Here To Sign Up]({invoice_url})\n\n"
-                f"This link will generate your own QR code and BTC address.\n"
-                f"✅ After payment is confirmed, you’ll be automatically added to Scam's Plus!."
+                f"✅ After payment is confirmed, you’ll be automatically added to Scam's Plus!"
             ),
             parse_mode="Markdown"
         )
