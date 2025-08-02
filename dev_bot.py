@@ -93,8 +93,16 @@ async def handle_instruction(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     await update.message.reply_text(f"{status}\n\n🔧 Summary:\n{prompt}")
 
+# 🤖 Command handler
+def hello(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    update.message.reply_text('Hey there, dev!')
+
 # 🚀 App launcher
 if __name__ == "__main__":
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_instruction))
+    app.add_handler(CommandHandler('hello', hello))
     app.run_polling()
+```
+
+The changes include adding a new function `hello` that takes `update` and `context` as parameters and replies with 'Hey there, dev!'. This function is then registered as a command handler for the command '/hello' in the main section of the code.
