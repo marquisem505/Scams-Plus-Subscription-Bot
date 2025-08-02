@@ -7,7 +7,6 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatJoi
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, ChatJoinRequestHandler, filters
 from aiohttp import web
 
-# 🔐 ENV variables
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 NOWPAYMENTS_API_KEY = os.getenv("NOWPAYMENTS_API_KEY")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "6967780222"))
@@ -24,23 +23,19 @@ user_invoices = {}
 subscription_expiry = {}
 COUNTDOWN_START_DAYS = 5
 
-
 def is_admin(user_id):
     return int(user_id) == ADMIN_ID
-
 
 def log_invoice(chat_id, username, invoice_id, invoice_url, amount):
     with open("payments_log.csv", mode="a", newline="") as file:
         writer = csv.writer(file)
         writer.writerow([datetime.now(), chat_id, username, invoice_id, amount, invoice_url])
 
-
 def log_confirmed_payment(chat_id, username, amount, invoice_id):
     with open("confirmed_payments.csv", mode="a", newline="") as file:
         writer = csv.writer(file)
         writer.writerow([datetime.now(), chat_id, username, amount, invoice_id])
 
-# 📲 /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     username = update.effective_user.username or "N/A"
@@ -85,24 +80,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await context.bot.send_message(chat_id=chat_id, text=f"❌ Error: {str(e)}")
 
-# 📊 /status
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    invoice_id = user_invoices.get(chat_id)
+    expiry = subscription_expiry.get(chat_id)
 
-    if not invoice_id:
-        await context.bot.send_message(chat_id=chat_id, text="❌ No payment found. Use /start to create one.")
-        return
+    if expiry:
+        await context.bot.send_message(chat_id=chat_id, text=f"📊 Your subscription expires on: **{expiry.strftime('%Y-%m-%d')}**", parse_mode="Markdown")
+    else:
+        await context.bot.send_message(chat_id=chat_id, text="❌ No active subscription found.")
 
-    try:
-        response = requests.get(f"https://api.nowpayments.io/v1/invoice/{invoice_id}", headers=headers)
-        data = response.json()
-        status = data.get('payment_status', 'Unknown')
-        await context.bot.send_message(chat_id=chat_id, text=f"📊 Current payment status: **{status.upper()}**", parse_mode="Markdown")
-    except Exception as e:
-        await context.bot.send_message(chat_id=chat_id, text=f"❌ Error checking status: {str(e)}")
-
-# 🧪 /testpayment
 async def testpayment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
         await update.message.reply_text("🚫 You are not authorized.")
@@ -134,7 +120,6 @@ async def testpayment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=ADMIN_ID, text=f"✅ (SIMULATED) {username} marked as PAID\nTelegram ID: {telegram_id}\nInvoice: {invoice_id}")
     await update.message.reply_text("✅ Test payment processed.")
 
-# ✅ Handle join requests (DM with button, no auto-approve)
 async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     join_request: ChatJoinRequest = update.chat_join_request
     user = join_request.from_user
@@ -161,7 +146,6 @@ async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE
     except Exception as e:
         print(f"❌ Failed to process join request: {e}")
 
-# 🔁 Background invoice + subscription checker
 async def poll_invoice_statuses():
     while True:
         await asyncio.sleep(300)
@@ -236,7 +220,6 @@ async def poll_invoice_statuses():
                 except Exception as e:
                     print(f"❌ Error removing expired user {uid}: {e}")
 
-# 🌐 Webhook handler
 async def telegram_webhook(request):
     try:
         data = await request.json()
@@ -247,18 +230,15 @@ async def telegram_webhook(request):
         print(f"❌ Webhook error: {e}")
         return web.Response(status=500, text="Webhook Error")
 
-# 🌐 aiohttp app
 app = web.Application()
 app.router.add_post('/telegram-webhook', telegram_webhook)
 
-# 📡 Telegram app
 application = Application.builder().token(BOT_TOKEN).build()
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("status", status))
 application.add_handler(CommandHandler("testpayment", testpayment))
 application.add_handler(ChatJoinRequestHandler(handle_join_request))
 
-# 📌 Set webhook on startup
 async def on_startup(app):
     await application.initialize()
     await application.bot.set_webhook(WEBHOOK_URL)
@@ -267,6 +247,5 @@ async def on_startup(app):
 
 app.on_startup.append(on_startup)
 
-# 🚀 Run server
 if __name__ == "__main__":
     web.run_app(app, port=8080)
