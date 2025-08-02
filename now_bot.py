@@ -2,7 +2,7 @@ import os
 import csv
 import requests
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatJoinRequest
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, ChatJoinRequestHandler, filters
 from aiohttp import web
@@ -11,7 +11,8 @@ from aiohttp import web
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 NOWPAYMENTS_API_KEY = os.getenv("NOWPAYMENTS_API_KEY")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "6967780222"))
-GROUP_ID = int(os.getenv("GROUP_ID", "-2286707356"))
+FREE_GROUP_ID = int(os.getenv("FREE_GROUP_ID", "2019911042"))
+PAID_GROUP_ID = int(os.getenv("GROUP_ID", "-2286707356"))
 WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://www.scamsclub.store/telegram-webhook")
 
 headers = {
@@ -20,14 +21,18 @@ headers = {
 }
 
 user_invoices = {}
+subscription_expiry = {}
+
 
 def is_admin(user_id):
     return int(user_id) == ADMIN_ID
+
 
 def log_invoice(chat_id, username, invoice_id, invoice_url, amount):
     with open("payments_log.csv", mode="a", newline="") as file:
         writer = csv.writer(file)
         writer.writerow([datetime.now(), chat_id, username, invoice_id, amount, invoice_url])
+
 
 def log_confirmed_payment(chat_id, username, amount, invoice_id):
     with open("confirmed_payments.csv", mode="a", newline="") as file:
@@ -113,9 +118,10 @@ async def testpayment(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     requests.post(
         f"https://api.telegram.org/bot{BOT_TOKEN}/unbanChatMember",
-        data={"chat_id": GROUP_ID, "user_id": telegram_id}
+        data={"chat_id": PAID_GROUP_ID, "user_id": telegram_id}
     )
 
+    subscription_expiry[int(telegram_id)] = datetime.now() + timedelta(days=30)
     log_confirmed_payment(telegram_id, username, amount, invoice_id)
 
     try:
@@ -154,7 +160,7 @@ async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE
     except Exception as e:
         print(f"❌ Failed to process join request: {e}")
 
-# 🔁 Background invoice checker
+# 🔁 Background invoice + subscription checker
 async def poll_invoice_statuses():
     while True:
         await asyncio.sleep(300)
@@ -169,9 +175,10 @@ async def poll_invoice_statuses():
 
                     requests.post(
                         f"https://api.telegram.org/bot{BOT_TOKEN}/unbanChatMember",
-                        data={"chat_id": GROUP_ID, "user_id": chat_id}
+                        data={"chat_id": PAID_GROUP_ID, "user_id": chat_id}
                     )
 
+                    subscription_expiry[int(chat_id)] = datetime.now() + timedelta(days=30)
                     log_confirmed_payment(chat_id, username, amount, invoice_id)
 
                     await application.bot.send_message(
@@ -197,9 +204,20 @@ async def poll_invoice_statuses():
                     )
 
                     del user_invoices[chat_id]
-
             except Exception as e:
                 print(f"❌ Error checking invoice {invoice_id} for {chat_id}: {e}")
+
+        for uid, expiry in list(subscription_expiry.items()):
+            if datetime.now() > expiry:
+                try:
+                    requests.post(
+                        f"https://api.telegram.org/bot{BOT_TOKEN}/banChatMember",
+                        data={"chat_id": PAID_GROUP_ID, "user_id": uid}
+                    )
+                    print(f"✅ Removed expired member: {uid}")
+                    del subscription_expiry[uid]
+                except Exception as e:
+                    print(f"❌ Error removing expired user {uid}: {e}")
 
 # 🌐 Webhook handler
 async def telegram_webhook(request):
