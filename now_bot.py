@@ -38,6 +38,17 @@ def log_confirmed_payment(chat_id, username, amount, invoice_id):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     username = update.effective_user.username or "N/A"
+    
+    # 🧹 Delete the user's /start message
+    try:
+        await update.message.delete()
+    except Exception as e:
+        print(f"❌ Could not delete /start message: {e}")# 🧹 Try to delete the user's /start message
+    try:
+        await update.message.delete()
+    except Exception as e:
+        print(f"❌ Could not delete /start message: {e}")
+        
     payload = {
         "price_amount": 97.00,
         "price_currency": "usd",
