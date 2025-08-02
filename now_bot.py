@@ -141,9 +141,14 @@ async def welcome_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # 🌐 Telegram webhook endpoint
 async def telegram_webhook(request):
-    data = await request.json()
-    await application.update_queue.put(Update.de_json(data, application.bot))
-    return web.Response(text="OK")
+    try:
+        data = await request.json()
+        update = Update.de_json(data, application.bot)
+        await application.process_update(update)
+        return web.Response(text="OK")
+    except Exception as e:
+        print(f"❌ Webhook error: {e}")
+        return web.Response(status=500, text="Webhook Error")
 
 # 🌐 aiohttp app
 app = web.Application()
