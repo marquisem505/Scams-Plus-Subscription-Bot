@@ -164,9 +164,9 @@ application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, we
 
 # 📌 Webhook on startup
 async def on_startup(app):
+    await application.initialize()
     await application.bot.set_webhook(WEBHOOK_URL)
     print(f"✅ Webhook set: {WEBHOOK_URL}")
-
 app.on_startup.append(on_startup)
 
 # 🚀 Run server
