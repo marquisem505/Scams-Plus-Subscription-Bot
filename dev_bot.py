@@ -3,6 +3,7 @@ import openai
 import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from base64 import b64decode, b64encode
 
 # 🔐 ENV VARIABLES
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -13,30 +14,29 @@ REPO_NAME = os.getenv("REPO_NAME")
 BRANCH = os.getenv("BRANCH", "main")
 TARGET_FILE = os.getenv("TARGET_FILE")
 RAILWAY_DEPLOY_URL = os.getenv("RAILWAY_DEPLOY_URL")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # 🤖 GPT Request
-async def ask_gpt(
-    f"""You are a Python developer assistant. I will give you code and a command. 
-DO NOT return explanations, comments, or markdown formatting. 
-Only return valid, raw Python code that can be directly used in a `.py` file.
+async def ask_gpt(prompt: str) -> str:
+    openai.api_key = OPENAI_API_KEY
+    response = openai.chat.completions.create(
+        model="gpt-4",
+        messages=[
+            {"role": "system", "content": "You're a Python developer assistant. Only return raw valid Python code with no markdown formatting or comments."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.3
+    )
+    content = response.choices[0].message.content
 
-Here is the existing code:
-
-{current_code}
-
-Apply the following change exactly:
-
-{prompt}
-"""
-)
-
-    # ✂️ Auto-sanitize: strip anything before the first line that starts with "import"
+    # ✂️ Clean markdown and extract valid Python
     lines = content.splitlines()
+    lines = [line for line in lines if not line.strip().startswith("```")]
     try:
         start_index = next(i for i, line in enumerate(lines) if line.strip().startswith("import"))
         clean_code = "\n".join(lines[start_index:])
     except StopIteration:
-        clean_code = content  # fallback
+        clean_code = "\n".join(lines)
 
     return clean_code
 
@@ -46,7 +46,6 @@ def get_file_contents():
     headers = {"Authorization": f"Bearer {GITHUB_PAT}"}
     response = requests.get(url, headers=headers)
     content = response.json()["content"]
-    from base64 import b64decode
     return b64decode(content).decode()
 
 # 📤 Push file update to GitHub
@@ -54,7 +53,6 @@ def push_to_github(updated_code: str):
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{TARGET_FILE}"
     headers = {"Authorization": f"Bearer {GITHUB_PAT}"}
     current = requests.get(url, headers=headers).json()
-    from base64 import b64encode
     data = {
         "message": "Auto update from Telegram",
         "content": b64encode(updated_code.encode()).decode(),
@@ -106,6 +104,3 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_instruction))
     app.add_handler(CommandHandler('hello', hello))
     app.run_polling()
-```
-
-The changes include adding a new function `hello` that takes `update` and `context` as parameters and replies with 'Hey there, dev!'. This function is then registered as a command handler for the command '/hello' in the main section of the code.
