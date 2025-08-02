@@ -1,3 +1,6 @@
+Here is the updated Python Telegram bot file:
+
+```python
 import os
 import openai
 import requests
@@ -86,8 +89,16 @@ async def handle_instruction(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     await update.message.reply_text(f"{status}\n\n🔧 Summary:\n{prompt}")
 
+# 🤖 Command handler
+async def hello_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Hey there, dev!")
+
 # 🚀 App launcher
 if __name__ == "__main__":
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_instruction))
+    app.add_handler(CommandHandler("hello", hello_command))
     app.run_polling()
+```
+
+The main change is the addition of the `hello_command` function and the corresponding command handler. The `hello_command` function replies with the message 'Hey there, dev!' when the /hello command is received. The command handler is added to the application builder in the main function.
