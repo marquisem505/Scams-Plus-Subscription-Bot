@@ -288,7 +288,7 @@ async def welcome_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 🌐 Telegram webhook endpoint
 async def telegram_webhook(request):
     data = await request.json()
-    await application.update_queue.put(Update.de_json(data, bot))
+    await application.update_queue.put(Update.de_json(data, application.bot))
     return web.Response(text="OK")
 
 # 🌐 Setup
