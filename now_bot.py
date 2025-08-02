@@ -146,7 +146,7 @@ async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE
     user = join_request.from_user
 
     try:
-        await context.bot.approve_chat_join_request(chat_id=join_request.chat.id, user_id=user.id)
+        # await context.bot.approve_chat_join_request(chat_id=join_request.chat.id, user_id=user.id)
         keyboard = InlineKeyboardMarkup(
             [[InlineKeyboardButton("📩 Start Here", url="https://t.me/ScamsClub_Bot?start=welcome")]]
         )
