@@ -16,8 +16,10 @@ RAILWAY_DEPLOY_URL = os.getenv("RAILWAY_DEPLOY_URL")
 
 # 🤖 GPT Request
 async def ask_gpt(prompt: str) -> str:
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-    response = openai.ChatCompletion.create(
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+    response = await client.chat.completions.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You're an assistant who writes clean, tested Python code for Telegram bots."},
@@ -25,7 +27,8 @@ async def ask_gpt(prompt: str) -> str:
         ],
         temperature=0.3
     )
-    return response.choices[0].message["content"]
+
+    return response.choices[0].message.content
 
 # 📥 Get file contents from GitHub
 def get_file_contents():
