@@ -23,16 +23,13 @@ headers = {
 user_invoices = {}
 subscription_expiry = {}
 
-
 def is_admin(user_id):
     return int(user_id) == ADMIN_ID
-
 
 def log_invoice(chat_id, username, invoice_id, invoice_url, amount):
     with open("payments_log.csv", mode="a", newline="") as file:
         writer = csv.writer(file)
         writer.writerow([datetime.now(), chat_id, username, invoice_id, amount, invoice_url])
-
 
 def log_confirmed_payment(chat_id, username, amount, invoice_id):
     with open("confirmed_payments.csv", mode="a", newline="") as file:
@@ -208,6 +205,35 @@ async def poll_invoice_statuses():
                 print(f"❌ Error checking invoice {invoice_id} for {chat_id}: {e}")
 
         for uid, expiry in list(subscription_expiry.items()):
+            time_left = expiry - datetime.now()
+
+            if timedelta(days=2, hours=23) < time_left < timedelta(days=3, hours=1):
+                try:
+                    keyboard = InlineKeyboardMarkup(
+                        [[InlineKeyboardButton("🔁 Renew Now", url="https://t.me/ScamsClub_Bot?start=renew")]]
+                    )
+                    await application.bot.send_message(
+                        chat_id=uid,
+                        text=(
+                            "⚠️ *Reminder: Your Scam’s Club Plus subscription expires in 3 days!*\n\n"
+                            "💳 Renew now to avoid losing access to:\n"
+                            "- VIP Lounge\n"
+                            "- Verified Methods\n"
+                            "- Bots, Tools, Mentorship, Vendors\n\n"
+                            "👇 Tap below to renew."
+                        ),
+                        parse_mode="Markdown",
+                        reply_markup=keyboard
+                    )
+
+                    await application.bot.send_message(
+                        chat_id=ADMIN_ID,
+                        text=f"🔔 Reminder sent to user `{uid}` – Subscription expires in 3 days.",
+                        parse_mode="Markdown"
+                    )
+                except Exception as e:
+                    print(f"❌ Failed to send renewal alert to {uid}: {e}")
+
             if datetime.now() > expiry:
                 try:
                     requests.post(
