@@ -134,7 +134,7 @@ async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         await context.bot.send_message(
             chat_id=user.id,
-            text=(I
+            text=(
                 "👋 Thank You For Joining Scam’s Club!\n\n"
                 "🚀 Ready To Level Up? Join Scam’s Plus For Access To:\n\n"
                 "🔒 Our VIP Lounge\n"
