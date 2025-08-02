@@ -73,11 +73,11 @@ def trigger_deploy():
 # 🧠 Instruction Handler
 async def handle_instruction(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
-        await update.message.reply_text("⛔️ Unauthorized.")
+        await update.message.reply_text("⛔️ You're not my daddy!.")
         return
 
     prompt = update.message.text.strip()
-    await update.message.reply_text("✍️ Thinking...")
+    await update.message.reply_text("✍️ Okay hold on...")
 
     current_code, sha = get_file_contents()
     final_code = await ask_gpt(
@@ -88,7 +88,9 @@ async def handle_instruction(update: Update, context: ContextTypes.DEFAULT_TYPE)
     deploy_success = trigger_deploy()
 
     status = "✅ Update pushed & deployed!" if deploy_success else "✅ Update pushed, but deploy not confirmed."
-    await update.message.reply_text(f"{status}\n\n🔧 Summary:\n{prompt}")
+    await update.message.reply_text(
+    f"{status}\n\n🔧 Summary:\n{prompt}\n\n📂 Target: {TARGET_FILE}"
+    )
 
 # 🔔 Simple /hello Command
 async def hello(update: Update, context: ContextTypes.DEFAULT_TYPE):
